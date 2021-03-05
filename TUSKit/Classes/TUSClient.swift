@@ -129,6 +129,7 @@ public class TUSClient: NSObject, URLSessionTaskDelegate {
                 if fileManager.copyFile(atLocation: upload.filePath!, withFileName: fileName) == false {
                     // fail out
                     logger.log(forLevel: .Error, withMessage: String(format: "Failed to move file.", upload.id))
+                    TUSClient.shared.delegate?.TUSFailure(forUpload: upload, withResponse: TUSResponse(message: "Failed to move file."), andError: nil)
                     cleanUp(forUpload: upload)
                     return
                 }
@@ -136,6 +137,7 @@ public class TUSClient: NSObject, URLSessionTaskDelegate {
                 if fileManager.writeData(withData: upload.data!, andFileName: fileName) == false {
                     // fail out
                     logger.log(forLevel: .Error, withMessage: String(format: "Failed to create file in local storage from data.", upload.id))
+                    TUSClient.shared.delegate?.TUSFailure(forUpload: upload, withResponse: TUSResponse(message: "Failed to create file in local storage from data."), andError: nil)
                     cleanUp(forUpload: upload)
                     return
                 }
@@ -292,7 +294,8 @@ public class TUSClient: NSObject, URLSessionTaskDelegate {
     }
 
     public func urlSession(_: URLSession, task _: URLSessionTask, didSendBodyData _: Int64, totalBytesSent: Int64, totalBytesExpectedToSend _: Int64) {
-        guard let upload = currentUploads?[safe: 0] else {
+        let pendingUploads = self.pendingUploads()
+        guard let upload = pendingUploads[safe: 0] else {
             // ignore?
             return
         }
@@ -301,7 +304,6 @@ public class TUSClient: NSObject, URLSessionTaskDelegate {
         delegate?.TUSProgress(forUpload: upload, bytesUploaded: Int(upload.uploadOffset ?? "0")! + Int(totalBytesSent), bytesRemaining: Int(upload.uploadLength ?? "0")!)
 
         // Notify  progress for global uploads
-        let pendingUploads = self.pendingUploads()
         let totalUploadedBytes = pendingUploads.reduce(0) { prev, _upload in prev + (Int(_upload.uploadOffset ?? "0")!) }
         let totalBytes = pendingUploads.reduce(0) { prev, _upload in prev + (Int(_upload.uploadLength ?? "0")!) }
 
